@@ -1,0 +1,11 @@
+# dc-all 文件备注
+- dc-demo1 
+	- 麒云 192.168.10.6 
+	- http://eywa.today36524.com
+	- http://openapi.today36524.com/
+- dc-sandbox1 
+	- Ip 麒云 10.10.10.36 内网 Ip 192.168.10.8 
+	- 对应的 jenkins http://ci.today36524.com admin/today!@#123
+	- 对应站点地址  http://eywa.sandobx1.today36524.com
+- dc-sandbox 75
+	- 对应的 jenkins http://123.206.103.113:8080 admin/3W.k@ypf

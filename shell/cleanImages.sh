@@ -1,0 +1,7 @@
+docker rmi -f $(docker images | grep kuaisu | awk '{print$3}')
+docker rmi -f $(docker images | grep services | awk '{print$3}')
+docker rmi -f $(docker images | grep websocket | awk '{print$3}')
+docker rmi -f $(docker images | grep akka | awk '{print$3}')
+docker rmi -f $(docker images | grep app | awk '{print$3}')
+docker rmi -f $(docker images | grep api  | awk '{print$3}')
+docker rmi -f $(docker images | grep None  | awk '{print$3}')

@@ -1,0 +1,1225 @@
+version: '2'
+services:
+  openApi:
+    container_name: openApi 
+    image: docker.today36524.com.cn:5000/basic/dapeng-api-doc:2.1.1
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=openApi
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - fluentBitLogPath=/usr/local/tomcat/logs/*.log
+      - fluentBitLogPathExclude=/usr/local/tomcat/logs/console.log,/usr/local/tomcat/logs/fluent*.log,/usr/local/tomcat/logs/gc*.log
+      - soa_service_timeout=60000
+      - JAVA_OPTS=-Dname=openApi -Dfile.encoding=UTF-8 -Dsun.jun.encoding=UTF-8  -Dio.netty.leakDetectionLevel=advanced
+    env_file:
+      - .envs/common.env
+    volumes:
+      - "/data/logs/openApi:/usr/local/tomcat/logs"
+      - "/data/var/apidoc_h2db:/root/.h2"
+      - "/data/var/fluent/openApi/:/fluent-bit/db/"
+    ports:
+      - "8083:8080"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/basic-services/dapeng-api-doc.git@@master
+      - project.depends=zookeeper
+      - project.build-depends.1=https://github.com/dapeng-soa/dapeng-open-api.git@@master
+      - project.owner=LHZ
+
+  dapengMesh:
+    container_name: dapengMesh
+    image: docker.today36524.com.cn:5000/basic/dapeng-mesh:2.1.1
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=dapengMesh
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - fluentBitLogPath=/dapeng-mesh/logs/*.log
+      - fluentBitLogPathExclude=/dapeng-mesh/logs/console.log,/dapeng-mesh/logs/fluent*.log,/dapeng-mesh/logs/gc*.log
+      - soa_service_timeout=120000
+      - E_JAVA_OPTS=-Dname=dapengMesh ${soa_jvm_ops} -XX:NewRatio=1 -XX:SurvivorRatio=30 -Dfile.encoding=UTF-8 -Djava.security.egd=file:/dev/./urandom -Dsun.jun.encoding=UTF-8 -XX:+PrintGCDateStamps -XX:+PrintGCDetails -XX:+PrintGC -XX:+HeapDumpOnOutOfMemoryError
+    env_file:
+      - .envs/common.env
+    volumes:
+      - "/data/var/fluent/dapeng-mesh/:/fluent-bit/db/"
+      - "/data/logs/dapeng-mesh:/dapeng-mesh/logs"
+    ports:
+      - "8989:9000"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+    labels:
+      - project.source=
+      - project.depends=zookeeper
+      - project.extra=public-image
+
+  eywa:
+    container_name: eywa
+    image: docker.today36524.com.cn:5000/biz/eywa:${eywa_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=eywa
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - fluentBitLogPath=/usr/local/tomcat/logs/*.log
+      - fluentBitLogPathExclude=/usr/local/tomcat/logs/console.log,/usr/local/tomcat/logs/fluent*.log,/usr/local/tomcat/logs/gc*.log
+      - JAVA_OPTS=-Dname=eywa ${soa_jvm_ops} -Dfile.encoding=UTF-8 -Dio.netty.leakDetectionLevel=advanced -Djava.security.egd=file:/dev/./urandom -Dsun.jun.encoding=UTF-8 
+      - soa_service_timeout=60000
+      - sso_callback_url=${sso_callback_url}
+      - cas_server_url=${cas_server_url}
+      - layout_export_excel_path=${layout_export_excel_path}
+    env_file:
+      - .envs/common.env
+    volumes:
+      - "/data/logs/eywa:/usr/local/tomcat/logs"
+      - "/data/excel:/data/excel"
+      - "/home/today/tscompose/config/server.xml:/usr/local/tomcat/conf/server.xml"
+      - "/data/var/fluent/eywa/:/fluent-bit/db/"
+    ports:
+      - "8081:8080"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/eywa-admin/eywa-service.git@@master
+      - project.depends=mysql,zookeeper
+      - project.build-depends.1=https://github.com/dapeng-soa/dapeng-open-api.git@@master
+      - project.build-depends.2=http://pms.today36524.td/central-services/supplier.git@@master
+      - project.build-depends.3=http://pms.today36524.td/central-services/purchase.git@@master
+      - project.build-depends.4=http://pms.today36524.td/central-services/admin.git@@master
+      - project.build-depends.5=http://pms.today36524.td/central-services/goods.git@@master
+      - project.build-depends.5=http://pms.today36524.td/central-services/finance.git@@master
+      - project.npm-folder=src/main/webapp/eywa-web
+      - project.submodule-folder=src/main/webapp/eywa-web
+      - project.owner=LJY
+      - project.operation=sh ./docker/catalina.sh
+
+
+  eywaWeb:
+    container_name: eywaWeb
+    image: docker.today36524.com.cn:5000/biz/eywa-web:${eywaWeb_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    ports:
+      - "9001:80"
+    volumes:
+      - "/data/excel:/usr/share/nginx/html/excel-file"
+    labels:
+      - project.source=http://pms.today36524.td/eywa-admin/eywa-web.git@@master
+      - project.depends=
+      - project.owner=JSheng
+      - project.operation=sh buildEywaWeb.sh
+ 
+
+  memberOpen:
+    container_name: memberOpen
+    image: docker.today36524.com.cn:5000/basic/member-open:${memberOpen_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=memberOpen
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - soa_service_timeout=5000
+      - fluentBitLogPath=/opt/member-api/logs/*.log
+      - fluentBitLogPathExclude=/opt/member-api/logs/console.log,/opt/member-api/logs/fluent*.log,/opt/gateway/logs/gc*.log      
+      - E_JAVA_OPTS=${soa_jvm_ops}
+      - jedis_config_maxTotal=100
+      - jedis_pool_port=${member_redis_port}
+      - jedis_config_maxIdle=10
+      - jedis_config_maxWaitMillis=100000
+      - jedis_pool_host=${member_redis_host_ip}
+    env_file:
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/member-open:/opt/member-api/logs"
+      - "/data/var/fluent/memberOpen/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-member-open.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+    ports:
+      - "8780:8080"
+    extra_hosts:
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/memberApi.git@@master
+      - project.depends=
+      - project.owner=WUPY
+      - project.operation=sh buildMemberOpen.sh
+
+  memberService:
+    container_name: memberService
+    image: docker.today36524.com.cn:5000/biz/member_service:${memberService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=memberService
+      - soa_container_port=${member_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - redis_host=${member_redis_host_ip}
+      - redis_port=${member_redis_port}
+      - order_redis_host=${order_redis_ip}
+      - order_redis_port=${order_redis_port}
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - kafka_producer_host=${kafka_host_ip}:9092
+      - E_JAVA_OPTS= -Dname=memberService ${soa_jvm_ops}
+      - shipnumber_url=${shipnumber_url}
+      - store_url=${store_url}
+      - php_url=${php_url}
+      - php_key=${php_key}
+      - php_app=${php_app}
+      - APM_OPTS=-Dskywalking.agent.application_code=memberService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/member-service:/dapeng-container/logs"
+      - "/data/var/fluent/memberService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${member_service_port}:${member_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/member.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.owner=WUPY
+      - project.operation=sh buildMember.sh
+
+  idGenService:
+    container_name: idGenService
+    image: docker.today36524.com.cn:5000/biz/idgen_service:${idGenService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - soa_container_port=${soa_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - E_JAVA_OPTS= -Dname=idGenService ${soa_jvm_ops}
+      - database_encrypt_enable=false
+      - serviceName=idGenService
+      - APM_OPTS=-Dskywalking.agent.application_code=idGenService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/idgen-services:/dapeng-container/logs"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/fluent/idGenService/:/fluent-bit/db/"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${basic_id_gen_port}:${soa_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/basic-services/gen_id.git@@master
+      - project.depends=mysql,zookeeper
+      - project.owner=LHZ
+      - project.operation=sh buildIdGen.sh
+
+  purchaseService:
+    container_name: purchaseService
+    image: docker.today36524.com.cn:5000/biz/purchase_service:${purchaseService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=purchaseService
+      - soa_container_port=${purchase_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - soa_service_timeout=60000
+      - kafka_producer_host=${kafka_host_ip}:${kafka_port}
+      - wms_host=${wms_host}
+      - php_host=${php_url}
+      - purchase_mail_enable=true
+      - purchase_mail_tag=Online
+      - redis_host_port=${redis_host_port}
+      - E_JAVA_OPTS= -Dname=purchaseService ${soa_jvm_ops}
+      - APM_OPTS=-Dskywalking.agent.application_code=purchaseService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/purchase-service:/dapeng-container/logs"
+      - "/data/var/fluent/purchaseService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${purchase_service_port}:${purchase_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "redis_host:${redis_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/purchase.git@@master
+      - project.build-depends.1=http://pms.today36524.td/central-services/supplier.git@@master
+      - project.build-depends.2=http://pms.today36524.td/central-services/goods.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.owner=ZJ
+      - project.operation=sh buildPurchase.sh
+  
+  purchaseScheduler:
+    container_name: purchaseScheduler
+    image: docker.today36524.com.cn:5000/biz/purchase-scheduler_service:${purchaseScheduler_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=purchaseScheduler
+      - soa_container_port=9191
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - soa_service_timeout=60000
+      - E_JAVA_OPTS= -Dname=purchaseScheduler ${soa_jvm_ops}
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/purchase-scheduler:/dapeng-container/logs"
+      - "/data/var/fluent/purchaseScheduler/:/fluent-bit/db/"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "9191:9191"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "redis_host:${redis_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/purchase-scheduler.git@@master
+      - project.depends=mysql,zookeeper
+      - project.owner=hyj
+      - project.operation=sbt clean api/publishLocal api/publishM2 docker  
+
+  supplierService:
+    container_name: supplierService 
+    image: docker.today36524.com.cn:5000/biz/supplier_service:${supplierService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=supplierService
+      - soa_container_port=${supplier_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - pinying_redis_host_ip=${pinying_redis_host_ip}
+      - pinying_redis_host_port=${pinying_redis_host_port}
+      - pinying_redis_host_timeout=${pinying_redis_host_timeout}
+      - redis_host_port=${redis_host_port}
+      - E_JAVA_OPTS= -Dname=supplierService ${soa_jvm_ops}
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - kafka_producer_host=${kafka_host_ip}:9092
+      - soa_service_timeout=60000
+      - php_url=${php_url}
+      - APM_OPTS=-Dskywalking.agent.application_code=supplierService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/supplier-service:/dapeng-container/logs"
+      - "/data/var/fluent/supplierService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${supplier_service_port}:${supplier_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "redis_host:${redis_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/supplier.git@@master
+      #- project.build-depends.1=http://pms.today36524.td/central-services/goods.git@@master
+      - project.build-depends.2=http://pms.today36524.td/central-services/admin.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.owner=LUOJ
+      - project.operation=sh buildSupplier.sh
+
+  categoryService:
+    container_name: categoryService 
+    image: docker.today36524.com.cn:5000/biz/category_service:${categoryService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=categoryService
+      - soa_container_port=${category_service_port}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - soa_container_ip=${host_ip}
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - kafka_producer_host=${kafka_host_ip}:9092
+      - redis_host_port=${redis_host_port}
+      - E_JAVA_OPTS= -Dname=categoryService ${soa_jvm_ops}
+      - soa_service_timeout=60000
+      - APM_OPTS=-Dskywalking.agent.application_code=categoryService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/category-service:/dapeng-container/logs"
+      - "/data/var/fluent/categoryService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${category_service_port}:${category_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "redis_host:${redis_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/category.git@@master
+      - project.build-depends.1=http://pms.today36524.td/central-services/admin.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.owner=ZJ
+      - project.operation=sh buildCategory.sh
+
+  commonDataService:
+    container_name: commonDataService
+    image: docker.today36524.com.cn:5000/biz/common-data_service:${commonDataService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=commonDataService
+      - soa_container_port=${commonData_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - redis_host_port=${redis_host_port}
+      - E_JAVA_OPTS= -Dname=commonDataService ${soa_jvm_ops}
+      - APM_OPTS=-Dskywalking.agent.application_code=commonDataService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+      - php_url=${php_url}
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/commonData-service:/dapeng-container/logs"
+      - "/data/var/fluent/commonDataService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${commonData_service_port}:${commonData_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "redis_host:${redis_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/common-data.git@@master
+      - project.build-depends.1=http://pms.today36524.td/central-services/admin.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.owner=CAOL
+      - project.operation=sh buildCommonData.sh
+
+  goodsService:
+    container_name: goodsService
+    image: docker.today36524.com.cn:5000/biz/goods_service:${goodsService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=goodsService
+      - soa_container_port=${goods_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - kafka_producer_host=${kafka_host_ip}:9092
+      - pinying_redis_host_ip=${pinying_redis_host_ip}
+      - pinying_redis_host_port=${pinying_redis_host_port}
+      - pinying_redis_host_timeout=${pinying_redis_host_timeout}
+      - redis_host_port=${redis_host_port}
+      - E_JAVA_OPTS= -Dname=goodsService ${soa_jvm_ops}
+      - soa_service_timeout=60000
+      - php_url=${php_url}
+      - APM_OPTS=-Dskywalking.agent.application_code=goodsService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/goods-service:/dapeng-container/logs"
+      - "/data/var/fluent/goodsService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${goods_service_port}:${goods_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "redis_host:${redis_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/goods.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.build-depends.1=http://pms.today36524.td/central-services/supplier.git@@master
+      - project.build-depends.2=http://pms.today36524.td/central-services/category.git@@master
+      - project.build-depends.3=http://pms.today36524.td/central-services/admin.git@@master
+      - project.owner=XIAY
+      - project.operation=sh buildGoods.sh
+
+  financeService:
+    container_name: financeService
+    image: docker.today36524.com.cn:5000/biz/finance_service:${financeService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=financeService
+      - soa_container_port=${finance_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - soa_service_timeout=5000
+      - E_JAVA_OPTS= -Dname=financeService -Xms2G -Xmx2G -Xss256K -Dio.netty.leakDetectionLevel=advanced -XX:MetaspaceSize=256M -XX:MaxMetaspaceSize=256M 
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - kafka_producer_host=${kafka_host_ip}:9092
+      - APM_OPTS=-Dskywalking.agent.application_code=financeService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/finance-service:/dapeng-container/logs"
+      - "/data/var/fluent/financeService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${finance_service_port}:${finance_service_port}"
+    extra_hosts:
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/finance.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.owner=wxx
+      - project.operation=sh buildFinance.sh
+
+  financeTaskService:
+    container_name: financeTaskService
+    image: docker.today36524.com.cn:5000/biz/finance-task_service:${financeTaskService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=financeTaskService
+      - soa_container_port=${finance_task_service_port}
+      - soa_service_timeout=5000
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - E_JAVA_OPTS= -Dname=financeTaskService -Xms6G -Xmx6G -Xss256K -Dio.netty.leakDetectionLevel=advanced -XX:MetaspaceSize=256M -XX:MaxMetaspaceSize=256M 
+      - APM_OPTS=-Dskywalking.agent.application_code=financeTaskService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/finance-task-service:/dapeng-container/logs"
+      - "/data/var/fluent/financeTaskService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${finance_task_service_port}:${finance_task_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/finance-task.git@@master
+      - project.build-depends.1=http://pms.today36524.td/central-services/finance.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.owner=wxx
+      - project.operation=sh buildFinanceTask.sh
+
+  financeReportService:
+    container_name: financeReportService
+    image: docker.today36524.com.cn:5000/biz/finance-report_service:${financeReportService_gid}
+    environment:
+      - serviceName=financeReportService
+      - soa_service_timeout=5000
+      - soa_container_port=${finance_report_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - E_JAVA_OPTS= -Dname=financeReportService ${finance_jvm_ops} 
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - kafka_producer_host=${kafka_host_ip}:9092
+      - APM_OPTS=-Dskywalking.agent.application_code=financeReportService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/finance-report-service:/dapeng-container/logs"
+      - "/data/var/fluent/financeReportService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${finance_report_service_port}:${finance_report_service_port}"
+    extra_hosts:
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/finance-report.git@@master
+      - project.build-depends.1=http://pms.today36524.td/central-services/goods.git@@master
+      - project.build-depends.2=http://pms.today36524.td/central-services/finance.git@@master
+      - project.depends=mysql,zookeeper,idGenService,goodsService,financeService
+      - project.owner=wxx
+      - project.operation=sh buildFinanceReport.sh
+
+  counterService:
+    container_name: counterService
+    image: dapengsoa/counter-service:2.1.1
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=counterService
+      - soa_container_port=${counter_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - soa_counter_influxdb_url=http://influxDbHost:8086
+      - E_JAVA_OPTS= -Dname=counterService ${soa_jvm_ops}
+      - soa_monitor_enable=false
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/counter-service:/dapeng-container/logs"
+      - "/data/var/fluent/countService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${counter_service_port}:${counter_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "influxDbHost:${influxDbHost}"
+    labels:
+      - project.source=
+      - project.depends=influxdb
+      - project.extra=public-image
+      - project.owner=ZJ
+  
+  newCheckAccountService:
+    container_name: newCheckAccountService
+    image: docker.today36524.com.cn:5000/biz/new-check-account_service:${newCheckAccountService_gid}
+    environment:
+      - serviceName=newCheckAccountService
+      - soa_service_timeout=5000
+      - soa_container_port=8191
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - E_JAVA_OPTS= -Dname=financeReportService ${finance_jvm_ops}
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - kafka_producer_host=${kafka_host_ip}:9092
+      - APM_OPTS=-Dskywalking.agent.application_code=newCheckAccountService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+      - alipay_bill_downloadurl_query=https://openapi.alipay.com/gateway.do
+      - alipay_app_id=2018101661671597
+      - alipay_public_key=${check_account_alipay_public_key}
+      - alipay_private_key=${check_account_alipay_private_key}
+      - down_file_path=/data/checkaccount_data/TODAY/checkaccount/
+      - weixin_bill_download_url_domain=api.mch.weixin.qq.com
+      - weixin_app_id=wx9cd2d04a506b30f0
+      - weixin_mch_id=1516795131
+      - weixin_key=62db6dfbf9b3fb41ab21afa7dc9654a4
+      - weixin_down_file_path=/data/checkaccount_data/TODAY/checkaccount/
+      - check_account_input_path=/data/checkaccount_data/TODAY/checkaccount/input/
+      - check_account_output_path=/data/checkaccount_data/TODAY/checkaccount/output/
+      - check_account_input_zip_path=/data/checkaccount_data/TODAY/checkaccount/zip/
+      - mail_smtp_host =smtp.today36524.com.cn
+      - mail_smtp_auth =true
+      - mail_smtp_user =hfcheng@today36524.com.cn
+      - mail_smtp_password =Today36524
+      - mail_from = hfcheng@today36524.com.cn
+      - mobile_mail_mailto=lhqi@today36524.com.cn;sylin@today36524.com.cn;zzhong@today36524.com.cn;mmliu@today36524.com.cn;sqliang@today36524.com.cn;cchen-2@today36524.com.cn;yzhang@today36524.com.cn;qliu@today36524.com.cn;yueliu1@today36524.com.cn;yijiang@today36524.com.cn;hfcheng@today36524.com.cn;xxwang-2@today36524.com.cn;zhengsun@today36524.com.cn;pywu@today36524.com.cn;dhu@today36524.com.cn
+      - mobile_mail_mailcc=hfcheng@today36524.com.cn
+      - mobile_mail_mailbcc=hfcheng@today36524.com.cn
+      - onecard_host=27.17.15.58
+      - onecard_port=8055
+      - onecard_username=jintianmengxiang
+      - onecard_password=jintianmengxiang
+      - onecard_directory=/
+      - timeout_day=1
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/new-check-account-service:/dapeng-container/logs"
+      - "/data/var/fluent/newCheckAccountService/:/fluent-bit/db/"
+      - "/data/var/shm:/data/shm"
+      - "/data/var/checkaccount_data:/data/checkaccount_data"
+    ports:
+      - "8191:8191"
+    extra_hosts:
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/new-check-account.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.owner=wxx
+      - project.operation=sbt clean api/publishLocal api/publishM2 docker
+   
+  adminService:
+    container_name: adminService
+    image: docker.today36524.com.cn:5000/biz/admin_service:${adminService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=adminService
+      - soa_container_port=${admin_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - cas_server_url=${cas_server_url}
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - pinying_redis_host_ip=${pinying_redis_host_ip}
+      - pinying_redis_host_port=${pinying_redis_host_port}
+      - pinying_redis_host_timeout=${pinying_redis_host_timeout}
+      - redis_host_port=${redis_host_port}
+      - E_JAVA_OPTS= -Dname=adminService ${soa_jvm_ops}
+      - soa_service_timeout=10000
+      - APM_OPTS=-Dskywalking.agent.application_code=adminService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/admin-service:/dapeng-container/logs"
+      - "/data/var/fluent/adminService/:/fluent-bit/db/"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${admin_service_port}:${admin_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "redis_host:${redis_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/admin.git@@master
+      - project.depends=mysql,zookeeper,idGenService
+      - project.owner=XUSHENG
+      - project.operation=sh buildAdmin.sh
+
+  stockService:
+      container_name: stockService
+      image: docker.today36524.com.cn:5000/biz/stock_service:${stockService_gid}
+      restart: on-failure:3
+      stop_grace_period: 30s
+      environment:
+        - serviceName=stockService
+        - soa_container_port=${stock_service_port}
+        - soa_container_ip=${host_ip}
+        - container_ip=${host_ip}
+        - host_ip=${host_ip}
+        - E_JAVA_OPTS= -Dname=stockService ${stock_jvm_ops} 
+        - soa_service_timeout=300000
+        - kafka_consumer_host=${kafka_host_ip}:9092
+        - kafka_producer_host=${kafka_host_ip}:9092
+        - php_url=${php_url}
+        - APM_OPTS=-Dskywalking.agent.application_code=stockService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+        - SOURCE_WUHAN=${SOURCE_WUHAN}
+        - SECRET_WUHAN=${SECRET_WUHAN}
+        - SOURCE_CHANGSHA=${SOURCE_CHANGSHA}
+        - SECRET_CHANGSHA=${SECRET_CHANGSHA}
+        - SOURCE_NANNING=${SOURCE_NANNING}
+        - SECRET_NANNING=${SECRET_NANNING}
+      env_file:
+        - .envs/application.env
+        - .envs/common.env
+      volumes:
+        - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+        - "/data/logs/dapeng/stock-service:/dapeng-container/logs"
+        - "/data/var/fluent/stockService/:/fluent-bit/db/"
+        - "/data/var/shm:/data/shm"
+      ports:
+        - "${stock_service_port}:${stock_service_port}"
+      extra_hosts:
+        - "fluentd:${fluentd_host}"
+        - "fluentdStandby:${fluentdStandby_host}"
+        - "db-master:${mysql_host_ip}"
+        - "soa_zookeeper:${zookeeper_host_ip}"
+      labels:
+        - project.source=http://pms.today36524.td/central-services/stock.git@@master
+        - project.build-depends.1=http://pms.today36524.td/central-services/goods.git@@master
+        - project.build-depends.1=http://pms.today36524.td/central-services/order.git@@master
+        - project.build-depends.3=http://pms.today36524.td/central-services/purchase.git@@master
+        - project.depends=mysql,zookeeper,idGenService,goodsService,purchaseService,
+        - project.owner=ZJ
+        - project.operation=sh buildStock.sh
+  
+  dailyReportService:
+    container_name: dailyReportService
+    image: docker.today36524.com.cn:5000/biz/daily-report_service:${dailyReportService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=dailyReportService
+      - soa_container_port=${daily_report_service_port}
+      - soa_container_ip=${host_ip}
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - E_JAVA_OPTS= -Dname=dailyReportService ${soa_jvm_ops} 
+      - soa_service_timeout=300000
+      - redis_host_timeout= 2000
+      - kafka_consumer_host=${kafka_host_ip}:9092
+      - kafka_producer_host=${kafka_host_ip}:9092
+      - php_url=${php_url}
+      - APM_OPTS=-Dskywalking.agent.application_code=stockService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/logs/dapeng/daily-report:/dapeng-container/logs"
+      - "/data/var/fluent/dailyReportService/:/fluent-bit/db/"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "${daily_report_service_port}:${daily_report_service_port}"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/daily-report.git@@master
+      - project.depends=mysql,zookeeper,idGenService,goodsService,purchaseService,,categoryService,stockService,supplierService
+      - project.owner=gz
+      - project.operation=sh buildDailyReport.sh
+
+  journalDataService:
+    container_name: journalDataService
+    image: harbor.today36524.td/biz/journal-data_service:${journalDataService_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - soa_container_port=9186
+      - soa_container_ip=${host_ip}
+      - E_JAVA_OPTS= -Dname=journalDataService ${soa_jvm_ops}
+      - database_encrypt_enable=false
+      - serviceName=journalDataService
+      - APM_OPTS=-Dskywalking.agent.application_code=idGenService -Dskywalking.collector.servers=${apm_server} -Dskywalking.logging.level=ERROR -javaagent:/opt/skywalking-agent/skywalking-agent.jar
+    env_file:
+      - .envs/application.env
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/journal-data-services:/dapeng-container/logs"
+      - "/home/today/tscompose/config/fluent-bit-dapeng.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+      - "/data/var/fluent/journalDataService/:/fluent-bit/db/"
+      - "/data/var/shm:/data/shm"
+    ports:
+      - "9186:9186"
+    extra_hosts:
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+      - "db-master:${mysql_host_ip}"
+      - "soa_zookeeper:${zookeeper_host_ip}"
+    labels:
+      - project.source=http://pms.today36524.td/basic-services/journal-data.git@@master
+      - project.depends=mysql,zookeeper
+      - project.owner=YQ
+      - project.operation=sh buildJournalData.sh
+
+  zookeeper:
+    container_name: zookeeper
+    image: zookeeper:3.4.11
+    restart: on-failure:3
+    environment:
+      - LANG=zh_CN.UTF-8
+      - TZ=CST-8
+      - ZOO_MAX_CLIENT_CNXNS=500
+    ports:
+      - "${zookeeper_port}:2181"
+      - "2888:2888"
+      - "3888:3888"
+    labels:
+      - project.source=
+      - project.depends=
+      - project.extra=public-image
+      - project.owner=LHZ
+
+  mysql:
+    container_name: mysql
+    image: mariadb:10.2.13 
+    restart: on-failure:3
+    environment:
+      - MYSQL_ROOT_PASSWORD=today-36524
+      - TZ=CST-8
+      - LANG=zh_CN.UTF-8
+    volumes:
+      - /data/var/mysql/:/var/lib/mysql
+      - /data/var/mysql-conf/my.cnf:/etc/mysql/my.cnf
+    ports:
+      - "3306:3306"
+    labels:
+      - project.source=
+      - project.depends=
+      - project.extra=public-image
+      - project.owner=LJY
+
+  influxdb:
+    container_name: influxdb 
+    image: influxdb:1.4.3-alpine
+    restart: on-failure:3
+    environment:
+      - TZ=CST-8
+      - GOGC=50
+      - LANG=zh_CN.UTF-8
+    volumes:
+      - /data/var/influxdb/data/:/var/lib/influxdb/data/
+      - /data/var/influxdb/meta/:/var/lib/influxdb/meta/
+      - /data/docker/wal/:/var/lib/influxdb/wal/
+      - /home/today/tscompose/config/influxdb.conf:/etc/influxdb/influxdb.conf
+    ports:
+      - 8086:8086
+    command: influxd -config /etc/influxdb/influxdb.conf 
+    labels:
+      - project.source=
+      - project.depends=
+      - project.extra=public-image
+      - project.owner=ZJ
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:5.0.4 
+    restart: on-failure:3
+    environment:
+      - TZ=CST-8
+      - LANG=zh_CN.UTF-8
+#      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_INSTALL_PLUGINS=grafana-simple-json-datasource
+      - GF_SECURITY_ADMIN_PASSWORD=today-36524
+    volumes:
+         - /data/var/grafana/:/var/lib/grafana
+    ports:
+      - 8300:3000
+    labels:
+      - project.source=
+      - project.depends=
+      - project.extra=public-image
+      - project.owner=ZJ
+
+  nginx:
+    container_name: nginx
+    image: nginx:1.13.12-alpine
+    restart: on-failure:3
+    environment:
+      - LANG=zh_CN.UTF-8
+      - TZ=CST-8
+    volumes:
+      - /data/config/nginx/conf.d/:/etc/nginx/conf.d/
+      - /home/today/tscompose/config/nginx.conf:/etc/nginx/nginx.conf
+      - /data/config/nginx/cert/:/etc/nginx/cert/
+      - /data/logs/nginx:/var/log/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+      - "5000:5000"
+    labels:
+      - project.source=
+      - project.depends=
+      - project.extra=public-image
+      - project.owner=Ever
+
+
+  tengine:
+    container_name: tengine
+    image: docker.today36524.com.cn:5000/basic/tengine:2.0.4
+    restart: on-failure:3
+    environment:
+      - LANG=zh_CN.UTF-8
+      - TZ=CST-8
+    volumes:
+      - /data/config/nginx/conf.d/:/etc/nginx/conf.d/
+      - /home/today/tscompose/config/nginx.conf:/etc/nginx/nginx.conf
+      - /data/config/nginx/cert/:/etc/nginx/cert/
+      - /data/logs/nginx:/var/log/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    labels:
+      - project.source=
+      - project.depends=
+      - project.extra=public-image
+      - project.owner=Ever 
+
+
+  redis:
+    container_name: redis 
+    image: dapengsoa/redis-wzx-alpine:3.2.10
+    restart: on-failure:3
+    environment:
+      - LANG=zh_CN.UTF-8
+      - TZ=CST-8
+    ports:
+      - "6379:6379"
+    command: redis-server /etc/redis/redis.conf
+    volumes:
+      - /home/today/tscompose/config/redis_config:/etc/redis 
+    labels:
+      - project.source=
+      - project.depends=
+      - project.extra=public-image
+      - project.owner=Ever
+      
+      
+  php-redis:
+    container_name: php-redis 
+    image: dapengsoa/redis-wzx-alpine:3.2.10
+    restart: on-failure:3
+    environment:
+      - LANG=zh_CN.UTF-8
+      - TZ=CST-8
+    ports:
+      - "16379:6379"
+    command: redis-server /etc/redis/redis.conf
+    volumes:
+      - /data/php/redis/redis_config:/etc/redis 
+    labels:
+      - project.source=
+      - project.depends=
+      - project.extra=public-image
+      - project.owner=Ever
+
+  canal:
+    container_name: canal
+    image: docker.today36524.com.cn:5000/today/canal:v1.1.0
+    environment:
+      - TZ=CST-8
+      - LANG=zh_CN.UTF-8
+    ports:
+      - "${canal_port}:${canal_port}"
+      - "11112:11112"
+    extra_hosts:
+      - "db-master:${mysql_host_ip}"
+    volumes:
+      - "/data/logs/canal/:/canal-server/logs"
+      - "/data/var/canal/instance.properties:/canal-server/conf/today/instance.properties"
+    labels:
+      - project.source=
+      - project.depends=kafka
+      - project.extra=public-image
+      - project.owner=LHZ
+
+  binlog:
+    container_name: binlogService
+    image: docker.today36524.com.cn:5000/basic/binlog:stable
+    restart: on-failure:3
+    environment:
+     - TZ=CST-8
+     - canal_canalServerIp=${canal_host_ip}
+     - canal_canalServerPort=${canal_port}
+     - kafka_topic=${binlog_topic}
+    extra_hosts:
+      - "kafka-host:${kafka_host_ip}"
+    volumes:
+      - "/data/logs/binlog-service/:/opt/binlog/logs"
+    labels:
+      - project.source=
+      - project.extra=public-image
+      - project.depends=mysql,canal,kafka
+      - project.owner=LHZ
+
+  kafka:
+    container_name: kafka
+    image: wurstmeister/kafka:2.12-2.1.0
+    restart: on-failure:3
+    ports:
+      - "${kafka_port}:${kafka_port}"
+      - "9094:9094"
+    environment:
+      - TZ=CST-8
+      - KAFKA_BROKER_ID=2
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=false
+      - KAFKA_ZOOKEEPER_CONNECT=${zookeeper_host_ip}:2181
+      - KAFKA_LOG_DIRS=/kafka/logs
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://${kafka_host_ip}:${kafka_port}
+      - KAFKA_LISTENERS=PLAINTEXT://:${kafka_port}
+    volumes:
+      - "/data/logs/kafka-logs/:/kafka/logs"
+    labels:
+      - project.source=
+      - project.extra=public-image
+      - project.depends=zookeeper
+      - project.owner=LHZ
+
+  fluentd:
+    container_name: fluentd
+    image: docker.today36524.com.cn:5000/basic/fluentd:v1.2
+    restart: on-failure:3
+    volumes:
+      - /data/var/fluentd/log:/fluentd/log
+      - /data/var/fluentd/etc:/fluentd/etc
+    environment:
+      - LANG=zh_CN.UTF-8
+      - TZ=CST-8
+    ports:
+      - "24224:24224"
+    labels:
+      - project.source=
+      - project.extra=public-image
+      - project.depends=
+      - project.owner=zhup
+
+  kafkaMsgAgent:
+    container_name: kafkaMsgAgent 
+    image: docker.today36524.com.cn:5000/basic/kafka-msg-agent:2.1.1
+    restart: on-failure:3
+    environment:
+      - serviceName=kafkaAgent
+      - container_ip=${host_ip}
+      - host_ip=${host_ip}
+      - fluentBitLogPath=/kafka-msg-agent/logs/*.log
+      - TZ=CST-8
+      - fluent_bit_enable=true
+      - LANG=zh_CN.UTF-8
+      - soa_zookeeper_host=${zookeeper_host_ip}:2181
+      - soa_kafka_host=${kafka_host_ip}:${kafka_port}
+    volumes:
+       - "/data/logs/kafka-msg-agent:/kafka-msg-agent/logs"
+       - "/home/today/tscompose/config/msgAgent/rest-consumer.xml:/kafka-msg-agent/conf/rest-consumer.xml"
+       - "/data/var/fluent/kafka-msg-agent/:/fluent-bit/db/"
+       - "/home/today/tscompose/config/fluent-bit-kafka-msg-agent.conf:/opt/fluent-bit/etc/fluent-bit.conf"
+    extra_hosts:
+       - "fluentd:${fluentd_host}"
+       - "fluentdStandby:${fluentdStandby_host}"
+    labels:
+      - project.source=http://pms.today36524.td/basic-services/kafka-msg-agent.git@@master
+      - project.depends=kafka,zookeeper
+      - project.extra=public-image
+      - project.owner=LHZ
+   
+  orderOpen:
+    container_name: orderOpen
+    image: docker.today36524.com.cn:5000/basic/order-open:${orderOpen_gid}
+    restart: on-failure:3
+    stop_grace_period: 30s
+    environment:
+      - serviceName=orderOpen
+      - soa_service_timeout=5000
+      - fluentBitLogPath=/opt/member-api/logs/*.log
+      - fluentBitLogPathExclude=/opt/member-api/logs/console.log,/opt/member-api/logs/fluent*.log,/opt/gateway/logs/gc*.log
+      - E_JAVA_OPTS=${soa_jvm_ops}
+      - wechat_app_key=${wechat_app_key}
+      - alipay_public_key=${alipay_public_key}
+    env_file:
+      - .envs/common.env
+    volumes:
+      - "/data/logs/dapeng/order-open:/opt/order-api/logs"
+      - "/data/var/fluent/orderOpen/:/fluent-bit/db/"
+    ports:
+      - "8700:80"
+    extra_hosts:
+      - "soa_zookeeper:${zookeeper_host_ip}"
+      - "fluentd:${fluentd_host}"
+      - "fluentdStandby:${fluentdStandby_host}"
+    labels:
+      - project.source=http://pms.today36524.td/central-services/order-api.git@@master
+      - project.depends=
+      - project.owner=WNB
+      - project.operation=sh buildOrderOpen.sh
+  
+  configServer:
+    container_name: configServer
+    image: docker.today36524.com.cn:5000/basic/dapeng-config-server:V2.1
+    restart: on-failure:3
+    stop_grace_period: 30s
+    env_file:
+      - .envs/common.env
+      - .envs/application.env
+    environment:
+      - serviceName=configServer
+      - fluent_bit_enable=true
+      - deploy_socket_url=${deploy_socket_url}
+      - TZ=CST-8
+      - soa_zookeeper_host=${zk_cluster_host}
+      - JAVA_OPTS= -Dname=configServer -Xms512M -Xmx512M -Xss256K -Dfile.encoding=UTF-8 -Dsun.jun.encoding=UTF-8
+    extra_hosts:
+      - "db-master:${mysql_host_ip}"
+    ports:
+      - "6800:8080"
+    volumes:
+      - "/data/logs/dapeng-config-server/:/usr/local/tomcat/logs"
+    labels:
+      - project.source=
+      - project.extra=public-image
+      - project.depends=
+
+  htmlNginx:
+      container_name: htmlNginx
+      image: nginx:1.13.12-alpine
+      restart: on-failure:3
+      environment:
+        - LANG=zh_CN.UTF-8
+        - TZ=CST-8
+      volumes:
+        - ./config/htmlNginx/conf.d/:/etc/nginx/conf.d/
+        - /data/workspace/:/data/workspace/
+        - /data/logs/htmlNginx:/var/log/nginx
+      ports:
+        - "8666:8666"
+        - "9527:9527"
+      labels:
+      - project.source=http://pms.today36524.td/PD/store_app.git@@master
+      - project.build-depends.1=http://pms.today36524.td/PD/vue-navi.git@@master
+      - project.build-depends.2=http://pms.today36524.td/PD/vue-suppliers.git@@master
+      - project.owner=Ever
+
+  t-mini:
+      privileged: true
+      image: docker.today36524.com.cn:5000/pd/php-nginx-fpm:v1.0.1
+      container_name: t-mini
+      restart: always
+      ports:
+        - "10080:80"
+        - "10443:443"
+      environment:
+        - TZ=Asia/Shanghai
+        - container=docker
+        - APP_CODE_PATH_CONTAINER=/var/www:cached
+        - CHANGE_SOURCE=true
+      volumes:
+        - /sys/fs/cgroup:/sys/fs/cgroup:ro
+        - /data/php/t-mini/htdoc/:/data/htdoc:rw
+        - /data/php/t-mini/htdoc-navi:/data/htdoc-navi:rw
+        - /data/php/t-mini/htdoc-suppliers:/data/htdoc-suppliers:rw
+        - /data/php/t-mini/logs/nginx:/var/log/nginx:rw
+        - /data/php/t-mini/logs/php:/usr/local/webserver/php/var/log:rw
+        - /data/php/gitcode/env:/data/gitcode/env:rw
+        - /data/php/t-mini/conf/vhosts:/usr/local/webserver/tengine/conf/vhosts:rw
+      labels:
+       - project.source=
+       - project.extra=public-image
+       - project.depends=
